@@ -47,6 +47,59 @@ kubectl=1.23.4-00
 docker-ce=5:20.10.7~3-0~ubuntu-bionic 						
 docker-ce-cli=5:20.10.7~3-0~ubuntu-bionic containerd.io						
 ```
-        
+---
+```shell 
+# Load Kernel Module
+cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
+br_netfilter
+EOF
+
+# Configure Kernel Parameters
+cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+EOF
+
+# Reload System Parameters
+sysctl --system
+
+# Update Package Repositories
+apt-get update
+
+# Install Required Packages
+apt-get install -y apt-transport-https ca-certificates curl
+
+# Add Kubernetes Repository
+curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+# Install Kubernetes Components
+apt-get update
+apt-get install -y kubeadm=1.23.4-00 kubelet=1.23.4-00 kubectl=1.23.4-00
+apt-mark hold kubelet kubeadm kubectl
+
+# Update and Upgrade System
+apt-get update && apt-get upgrade
+
+# Install Docker
+apt-get install docker-ce=5:20.10.7~3-0~ubuntu-bionic docker-ce-cli=5:20.10.7~3-0~ubuntu-bionic containerd.io
+
+# Configure Docker
+sudo mkdir /etc/docker
+cat <<EOF | sudo tee /etc/docker/daemon.json
+{
+  "exec-opts": ["native.cgroupdriver=systemd"],
+  "log-driver": "json-file",
+  "log-opts": { "max-size": "100m" },
+  "storage-driver": "overlay2"
+}
+EOF
+
+# Enable and Restart Docker
+systemctl enable docker
+systemctl daemon-reload
+systemctl restart docker
+
+```
 
     
